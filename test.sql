@@ -68,3 +68,50 @@ from book
 where amount > 5
 group by author
 order by planning_price desc;
+
+select author, title, price
+from book
+where price <=(
+    select ROUND(avg(price), 2)
+    from book)
+order by price desc;
+
+select *
+from book
+
+select product_id, type_id, cost_price
+from products
+order by type_id asc, cost_price desc
+
+select product_id, type_id
+from products
+where type_id <> 3
+order by type_id asc
+
+select author, title, price
+from book
+where ABS(price - (select min(price)
+                from book))> 150
+ order by price asc;
+ 
+select client_id, fio, email, length(email) as length
+from clients
+where length(email) > 15 and length(email) < 20
+order by length
+
+select product_id, type_id, selling_price
+from products
+where (type_id = 1 and selling_price between 50 and 80) 
+    or (type_id = 3 and selling_price < 50)
+order by selling_price desc
+
+select product_id, info
+from products
+where info is not null
+order by product_id
+
+select client_id, email
+from clients
+where email like '%b%' and (email like '%@hotmail.com' 
+    or email like '%@gmail.com')
+order by client_id 
