@@ -115,3 +115,54 @@ from clients
 where email like '%b%' and (email like '%@hotmail.com' 
     or email like '%@gmail.com')
 order by client_id 
+
+select author, title, amount, count(amount) 
+from book
+where amount in 
+
+select author, title, amount
+FROM book
+WHERE amount IN (
+    select amount
+    from book
+    group by amount
+    having count(amount) = 1
+    );
+    
+select author, title, price
+FROM book
+WHERE price < ANY (select min(price)
+    from book
+    group by author
+    );
+    
+select pt.type_id
+from products p
+right join product_type pt
+on p.type_id = pt.type_id 
+where p.type_id is null
+order by pt.type_id desc
+
+select pt.type
+from product_type pt
+left join products p
+on pt.type_id = p.type_id
+left join orderitems o
+on p.product_id = o.product_id
+where o.product_id is null
+order by pt.type asc
+
+SELECT pt.type  AS type
+FROM orderitems o
+JOIN products p  ON o.product_id = p.product_id 
+RIGHT JOIN product_type pt  ON p.type_id = pt.type_id 
+WHERE o.product_id  IS NULL
+ORDER BY type
+
+SELECT title, author, amount, ((SELECT MAX(amount) FROM book) - amount) AS Заказ
+FROM book
+WHERE ABS((SELECT MAX(amount) FROM book) - amount) > 0
+
+select title, author, price, amount, (price * 1.1) AS new_price, ((price * 1.1) * amount) AS new_cost
+from book
+where amount > (select AVG(amount) from book)
