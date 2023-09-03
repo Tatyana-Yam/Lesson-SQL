@@ -166,3 +166,125 @@ WHERE ABS((SELECT MAX(amount) FROM book) - amount) > 0
 select title, author, price, amount, (price * 1.1) AS new_price, ((price * 1.1) * amount) AS new_cost
 from book
 where amount > (select AVG(amount) from book)
+
+select product_id, type_id, 
+    ROUND(((selling_price-cost_price)/cost_price*100), 3) AS murkup
+from products
+WHERE ROUND(((selling_price-cost_price)/cost_price* 100), 3) > 20
+union all
+select product_id, type_id, 
+    ROUND(((selling_price-cost_price)/cost_price* 100), 3) AS murkup
+from products
+where type_id = 4
+order by murkup desc
+
+select max(pt.type) as type
+from product_type pt
+join products p
+on pt.type_id = p.type_id
+
+select pt.type, p.type_id, o.product_id
+from product_type pt
+full join products p
+on pt.type_id = p.type_id
+full join orderitems o
+on p.product_id = o.product_id
+where pt.type = 'Тетради'
+
+SELECT fio
+FROM clients cl
+JOIN orders ord
+ON cl.client_id =ord.client_id 
+JOIN orderitems oi
+ON ord.order_id =oi.order_id 
+JOIN products p 
+ON oi.product_id=p.product_id 
+JOIN product_type pt 
+ON p.type_id =pt.type_id 
+WHERE pt.type  = 'Тетради'
+ORDER BY fio
+
+CREATE TABLE supply(supply_id INT PRIMARY KEY AUTO_INCREMENT, title VARCHAR(50), author VARCHAR(30), price DECIMAL(8, 2), amount INT);
+
+insert into book (title, author, price, amount)
+select title, author, price, amount
+from supply
+where author <> 'Булгаков М.А.' and author <> 'Достоевский Ф.М.';
+
+select * from book
+
+select employee, sum(sum) AS summ
+from transactions
+where type = 1
+group by employee
+order by sum(sum) 
+
+INSERT INTO book (title, author, price, amount)
+SELECT title, author, price, amount
+FROM supply
+WHERE author not in (
+    SELECT author
+    FROM book
+    );
+    
+SELECT *
+FROM book
+
+UPDATE book
+SET price = 0.9 * price
+WHERE amount BETWEEN 5 and 10;
+
+SELECT *
+FROM book
+
+select tr.shop_id, sum(tr.sum)
+from transactions tr
+full join discounts d
+on tr.disc_id = d.discount_id
+group by tr.shop_id
+order by tr.shop_id 
+
+update book
+set price = price * 0.9
+where buy = 0;
+
+update book
+set buy = amount
+where buy > amount;
+    
+select *
+from book
+
+select tr.shop_id, d.value, sum(tr.sum) AS accruals
+from transactions tr
+join discounts d
+on tr.disc_id = d.discount_id
+where tr.type = 0
+group by tr.shop_id, d.value
+order by tr.shop_id asc, accruals desc
+
+SELECT DATE(date) as date, COUNT(DISTINCT doc_id) AS amount
+FROM transactions
+WHERE DATE(date) BETWEEN '2023-05-17' AND '2023-05-19'
+GROUP BY DATE(date)
+ORDER BY date
+
+update book, supply
+set book.amount = book.amount + supply.amount
+where book.title = supply.title and book.author = supply.author;
+
+update book, supply
+set book.price = (book.price + supply.price)/2
+where book.title = supply.title and book.author = supply.author;
+
+select transaction_id, card_id, date, sum, type, 
+    employee, doc_id, cash_id, shop_id, disc_id
+from transactions_1
+group by transaction_id, card_id, date, sum, type, 
+    employee, doc_id, cash_id, shop_id, disc_id
+having count(transaction_id) > 1 and count(card_id) > 1 and
+    count(date) > 1 and count(sum) > 1 and count(type) > 1 and 
+    count(employee) > 1 and count(doc_id) > 1 and count(cash_id) 
+    > 1 and count(shop_id) > 1 and count(disc_id) > 1
+order by transaction_id asc
+

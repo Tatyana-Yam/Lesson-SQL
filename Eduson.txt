@@ -1,0 +1,21 @@
+select employee, sum(sum) as summ
+from transactions
+where type = 0
+group by employee
+order by summ
+limit 3 offset 2 
+
+Оконные функции. Вывести: дату, сумму текущего списания (начисления для данной транзакции), общий баланс (списания - начисления) нарастающим итогом
+
+SELECT t2.date,
+       t2.sum AS summ,
+       SUM(t2.sum) OVER (ORDER BY t2.transaction_id) AS cumsum
+FROM(
+    SELECT transaction_id, date,
+        CASE
+            WHEN TYPE = 1 THEN -sum
+            ELSE sum
+        END
+    FROM transactions
+    ) t2
+ORDER by date

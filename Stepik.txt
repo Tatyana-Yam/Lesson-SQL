@@ -1,0 +1,27 @@
+create table ordering as
+select author, title, (
+    select round(AVG(amount))
+    from book
+    ) as amount
+from book
+where amount < (
+    select round(AVG(amount))
+    from book
+    );
+
+select *
+from ordering
+
+create table ordering as
+select title, author, (
+        select max(price)
+         from supply
+         ) as price
+      
+from book
+where amount > (select round(avg(amount))
+                from book
+               );
+
+select *
+from ordering
