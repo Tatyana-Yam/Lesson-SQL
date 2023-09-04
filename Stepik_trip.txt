@@ -1,0 +1,30 @@
+select name, city, per_diem, date_first, date_last
+from trip
+where name like '%а_____'
+order by date(date_last) desc
+
+select distinct name
+from trip
+where city = 'Москва'
+order by name
+
+select city, count(city) as Количество
+from trip
+group by city
+order by city 
+
+select city, count(city) as Количество
+from trip
+group by city
+order by count(city) desc
+limit 2
+
+select name, city, datediff(date_last, date_first)+1 as Длительность
+from trip
+where city not in (select city from trip where city = 'Москва') 
+    and city not in (select city from trip where city = 'Санкт-Петербург')  
+order by Длительность desc, city desc
+
+select name, min(datediff(date_last, date_first)) 
+from trip
+group by name
