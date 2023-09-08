@@ -19,3 +19,73 @@ FROM(
     FROM transactions
     ) t2
 ORDER by date
+
+Оконные функции: выввести порядковый номер строки в рамках конкретной кассы
+select cash_id, date(date), row_number() over (partition by cash_id)
+    as num
+from transactions
+order by cash_id, num
+
+Оконные функции: проранжировать значения с разрывом
+select  employee, type, doc_id, rank() 
+    over (partition by employee order by doc_id) as rnk
+from transactions
+order by employee desc, rnk
+
+Оконные функции: проранжировать значения без разрыва
+select employee, type, doc_id, 
+    dense_rank() over (partition by employee order by doc_id desc)
+    as rnk
+from transactions
+order by employee desc, rnk
+
+Оконные функции: вывести следующее и предыдущее значение
+select id, employee, sum, 
+    lead(sum) over (partition by employee order by id) as ld,
+    lag(sum) over (partition by employee order by id) as lg
+from transactions
+order by id
+
+Посчитать прирост начислений
+select employee, dt, lg, sm, round((sm-lg)/lg::numeric, 2) as inc
+from(
+    select employee, dt, 
+    lag(sm) over(partition by employee order by dt) as lg, sm
+    from(
+        select employee, date as dt, sum(sum) as sm
+        from transactions
+        where type = 0
+        group by employee, date
+        ) t
+    ) t2
+order by employee, dt
+
+Посчитать среднее значение транзакций
+SELECT transaction_id,
+       dt,
+       total,
+       ROUND((lg+ld)/2::NUMERIC, 2) AS sliding
+FROM (
+    SELECT transaction_id,
+        dt,
+        LAG(total) OVER(ORDER BY dt) AS lg,
+        total,
+        LEAD(total) OVER(ORDER BY dt) AS ld
+    FROM
+    (
+        SELECT transaction_id,
+            MAX(date) AS dt,
+            SUM(sm) AS total
+        FROM (
+            SELECT transaction_id,
+                date,
+                CASE
+                    WHEN type=1 THEN -sum
+                    ELSE sum
+                END sm
+            FROM transactions
+            ) t
+    GROUP BY transaction_id
+    ) t2
+)t3
+ORDER BY dt
