@@ -1,0 +1,37 @@
+create table fine (fine_id integer auto_increment primary key, name varchar(30), number_plate varchar(6), 
+                   violation varchar(50), sum_fine decimal (8, 2), date_violation date, date_payment date);
+
+
+insert into fine (name, number_plate, violation, sum_fine, date_violation, date_payment)
+        values ('Баранов П.Е.', 'Р523ВТ', 'Превышение скорости(от 40 до 60)', null, '2020-02-14', null),
+        ('Абрамова К.А.', 'О111АВ', 'Проезд на запрещающий сигнал', null, '2020-02-23', null),
+        ('Яковлев Г.Р.', 'Т330ТТ', 'Проезд на запрещающий сигнал', null, '2020-03-03', null);  
+
+#Занести в таблицу fine суммы штрафов, которые должен оплатить водитель, в соответствии с данными из таблицы traffic_violation. 
+#При этом суммы заносить только в пустые поля столбца  sum_fine.
+update fine f, traffic_violation tv
+set f.sum_fine = tv.sum_fine
+where f.violation = tv.violation and f.sum_fine is null;
+
+#Вывести фамилию, номер машины и нарушение только для тех водителей, которые на одной машине нарушили одно и то же правило   два и более раз. 
+#При этом учитывать все нарушения, независимо от того оплачены они или нет. 
+#Информацию отсортировать в алфавитном порядке, сначала по фамилии водителя, потом по номеру машины и, наконец, по нарушению.
+select name, number_plate,violation
+from fine
+group by name, number_plate, violation
+having count(*) >= 2
+order by name, number_plate, violation
+
+#В таблице fine увеличить в два раза сумму неоплаченных штрафов для отобранных на предыдущем шаге записей. 
+update fine,
+    (select name, number_plate, violation
+    from fine
+    group by name, number_plate, violation
+    having count(*) >= 2
+    ) query_in
+set sum_fine = sum_fine * 2
+where fine.name = query_in.name and fine.number_plate = query_in.number_plate and
+      fine.violation = query_in.violation and fine.date_payment is null;
+
+select *
+from fine
