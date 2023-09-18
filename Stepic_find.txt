@@ -9,6 +9,7 @@ insert into fine (name, number_plate, violation, sum_fine, date_violation, date_
 
 #Занести в таблицу fine суммы штрафов, которые должен оплатить водитель, в соответствии с данными из таблицы traffic_violation. 
 #При этом суммы заносить только в пустые поля столбца  sum_fine.
+
 update fine f, traffic_violation tv
 set f.sum_fine = tv.sum_fine
 where f.violation = tv.violation and f.sum_fine is null;
@@ -16,6 +17,7 @@ where f.violation = tv.violation and f.sum_fine is null;
 #Вывести фамилию, номер машины и нарушение только для тех водителей, которые на одной машине нарушили одно и то же правило   два и более раз. 
 #При этом учитывать все нарушения, независимо от того оплачены они или нет. 
 #Информацию отсортировать в алфавитном порядке, сначала по фамилии водителя, потом по номеру машины и, наконец, по нарушению.
+
 select name, number_plate,violation
 from fine
 group by name, number_plate, violation
@@ -23,6 +25,7 @@ having count(*) >= 2
 order by name, number_plate, violation
 
 #В таблице fine увеличить в два раза сумму неоплаченных штрафов для отобранных на предыдущем шаге записей. 
+
 update fine,
     (select name, number_plate, violation
     from fine
@@ -33,5 +36,38 @@ set sum_fine = sum_fine * 2
 where fine.name = query_in.name and fine.number_plate = query_in.number_plate and
       fine.violation = query_in.violation and fine.date_payment is null;
 
-select *
+#Необходимо:
+#в таблицу fine занести дату оплаты соответствующего штрафа из таблицы payment; 
+#уменьшить начисленный штраф в таблице fine в два раза  (только для тех штрафов, информация о которых занесена в таблицу payment) , 
+#если оплата произведена не позднее 20 дней со дня нарушения.
+
+update fine,
+    (
+        select name, number_plate, violation
+        from payment
+        where datediff(date_payment, date_violation) < 21
+    ) query_result
+set sum_fine = sum_fine/2
+where fine.name = query_result.name and fine.number_plate = query_result.number_plate and 
+      fine.violation = query_result.violation;
+
+update fine, payment
+set fine.date_payment = payment.date_payment
+where fine.date_payment is null;
+
+#Создать новую таблицу back_payment, куда внести информацию о неоплаченных штрафах (Фамилию и инициалы водителя, номер машины, нарушение, сумму штрафа
+#и  дату нарушения) из таблицы fine.
+#Важно. На этом шаге необходимо создать таблицу на основе запроса! Не нужно одним запросом создавать таблицу, а вторым в нее добавлять строки.
+
+create table back_payment as 
+select name, number_plate, violation, sum_fine, date_violation
 from fine
+where date_payment is null;
+
+#Удалить из таблицы fine информацию о нарушениях, совершенных раньше 1 февраля 2020 года. 
+
+delete from fine
+where date_violation < '2020-02-01';
+
+
+
