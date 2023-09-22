@@ -124,4 +124,63 @@ group by name_author
 having count(name_author) = 1
 order by name_author
 
+/* Вывести информацию о книгах (название книги, фамилию и инициалы автора, название жанра, цену и количество экземпляров книг), 
+написанных в самых популярных жанрах, в отсортированном в алфавитном порядке по названию книг виде. 
+Самым популярным считать жанр, общее количество экземпляров книг которого на складе максимально.*/
+select title, name_author, name_genre, price, amount
+from author
+    inner join book on author.author_id = book.author_id
+    inner join genre on book.genre_id = genre.genre_id
+    group by name_author, name_genre, title, price, amount, genre.genre_id
+    having genre_id in
+    (select query_in_1.genre_id
+    from (select genre_id, sum(amount) as sum_amount
+        from book
+        group by genre_id
+        ) query_in_1
+        inner join
+        (select genre_id, sum(amount) as sum_amount
+        from book
+        group by genre_id
+        order by sum_amount desc
+        limit 1
+        ) query_in_2
+        on query_in_1.sum_amount = query_in_2.sum_amount 
+    )     
+order by title     
 
+/*Если в таблицах supply  и book есть одинаковые книги, которые имеют равную цену,  вывести их название и автора, 
+а также посчитать общее количество экземпляров книг в таблицах supply и book,  
+столбцы назвать Название, Автор  и Количество.*/
+select book.title as Название, name_author as Автор, (book.amount + supply.amount) as Количество
+from author 
+    inner join book using(author_id)
+    inner join supply
+    on book.title = supply.title
+    and author.name_author = supply.author
+where book.price = supply.price
+
+select title, name_author, name_genre, name_city
+from author
+    inner join book using(author_id)
+    inner join genre using (genre_id)
+
+select sum(amount) as sum_amount
+    from book 
+    group by author_id
+    having sum(amount) > 5
+
+select name_author, sum(amount), sum(price)
+    from author
+        inner join book using(author_id)
+        inner join genre using (genre_id)
+    group by name_author
+
+select name_author, abs(sum(t1.sum_amount)*sum(t1.sum_price)) 
+from (
+    select name_author, sum(amount) as sum_amount, sum(price) as sum_price
+    from author
+            inner join book using(author_id)
+            inner join genre using (genre_id)
+    group by name_author) t1
+group by name_author
