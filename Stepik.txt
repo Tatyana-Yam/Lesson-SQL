@@ -184,3 +184,101 @@ from (
             inner join genre using (genre_id)
     group by name_author) t1
 group by name_author
+
+/*Для книг, которые уже есть на складе (в таблице book), но по другой цене, чем в поставке (supply),  
+необходимо в таблице book увеличить количество на значение, указанное в поставке,  и пересчитать цену. 
+А в таблице  supply обнулить количество этих книг.*/
+update book
+    inner join author on author.author_id = book.author_id
+    inner join supply on book.title = supply.title
+                and supply.author = author.name_author
+set book.price = abs(((book.price*book.amount)+(supply.price*supply.amount))/(book.amount+supply.amount)),
+    book.amount = (book.amount + supply.amount),
+    supply.amount = 0
+where book.price != supply.price;
+    
+    
+select * from book;
+
+select * from supply;
+
+/*Включить новых авторов в таблицу author с помощью запроса на добавление, а затем вывести все данные из таблицы author.  
+Новыми считаются авторы, которые есть в таблице supply, но нет в таблице author.*/
+insert into author (name_author)
+select supply.author
+from
+    author
+    right join supply
+    on author.name_author = supply.author
+where name_author is null;
+    
+select *
+from author
+
+/*добавить новые записи о книгах, которые есть в таблице supply и нет в таблице book. (В таблицах supply и book сохранены изменения предыдущих шагов).*/
+insert into book (title, author_id, price, amount)
+select title, author_id, price, amount
+from
+    author
+    inner join supply
+    on author.name_author = supply.author
+where amount <> 0;
+
+select *
+from book
+
+/* Занести для книги «Стихотворения и поэмы» Лермонтова жанр «Поэзия», а для книги «Остров сокровищ» Стивенсона - «Приключения». (Использовать два запроса).*/
+update book
+set genre_id = 2
+where book_id = 10;
+
+update book
+set genre_id = 3
+where book_id = 11;
+
+select *
+from book
+
+/*Удалить всех авторов и все их книги, общее количество книг которых меньше 20.*/
+delete from author
+where author_id in 
+    (select author_id
+    from book
+    group by author_id
+    having sum(amount) < 20);
+   
+select *
+from author;
+
+select *
+from book
+
+/*Удалить все жанры, к которым относится меньше 4-х наименований книг. 
+В таблице book для этих жанров установить значение Null.*/ 
+delete from genre
+where genre_id in
+    (select genre_id
+    from book
+    group by genre_id
+    having count(genre_id) < 4);
+
+select * from genre;
+
+select * from book;
+
+/*Удалить всех авторов, которые пишут в жанре "Поэзия". 
+Из таблицы book удалить все книги этих авторов. В запросе для отбора авторов использовать 
+полное название жанра, а не его id.*/
+delete from author
+using
+    author
+    inner join book on author.author_id = book.author_id
+    inner join genre on book.genre_id = genre.genre_id
+where genre.name_genre in 
+    (select genre.name_genre
+     from genre
+     where name_genre = 'Поэзия');
+
+select * from author;
+
+select * from book;
