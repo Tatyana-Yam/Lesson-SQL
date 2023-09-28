@@ -1,0 +1,7 @@
+select buy.buy_id, book.title, book.price, buy_book.amount
+from client
+    inner join buy on client.client_id = buy.client_id
+    inner join buy_book on buy.buy_id = buy_book.buy_id
+    inner join book on buy_book.book_id = book.book_id
+where client.name_client = 'Баранов Павел'
+order by buy_id, title;

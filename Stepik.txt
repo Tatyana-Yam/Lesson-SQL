@@ -282,3 +282,27 @@ where genre.name_genre in
 select * from author;
 
 select * from book;
+
+
+/*Включить авторов и названия книг из таблицы supply, если они отсутствуют в таблице book*/
+insert into author (name_author)
+select supply.author
+from
+    author
+    right join supply
+    on author.name_author = supply.author
+where name_author is null;
+
+select * from author;
+
+insert into book (author_id, title)
+select author.author_id, supply.title
+from
+    book
+    right join author
+    on book.author_id = author.author_id
+    right join supply
+    on author.name_author = supply.author
+where book.author_id is null;
+
+select * from book
