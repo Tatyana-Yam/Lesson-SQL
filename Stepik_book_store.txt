@@ -86,3 +86,197 @@ where author.name_author = "Достоевский Ф.М."
 group by client.name_client
 order by client.name_client
 
+/*Вывести жанр (или жанры), в котором было заказано больше всего экземпляров книг, указать это количество. Последний столбец назвать Количество.*/
+select t2.name_genre, t2.sum_amount as Количество
+from
+    (select genre.name_genre, sum(buy_book.amount) as sum_amount
+    from 
+        buy_book
+        inner join book using(book_id)
+        inner join genre using(genre_id)
+     group by genre.name_genre
+     ) t2
+    inner join
+    (select genre.name_genre, sum(buy_book.amount) as sum_amount
+    from 
+        buy_book
+        inner join book using(book_id)
+        inner join genre using(genre_id)
+    group by genre.name_genre
+    order by sum_amount desc
+    limit 1) t1
+    on t1.sum_amount = t2.sum_amount
+
+/*Черновики*/
+/*Архив работает*/
+select year(date_payment) as Год, month(date_payment) as Месяц, sum(price * amount) as Сумма
+from buy_archive
+group by month(date_payment), year(date_payment)
+
+/*Выбор года и месяца текущий Работает*/
+select year(t1.date_pay) as Год, month(t1.date_pay) as Месяц
+from (select buy_step.date_step_end as date_pay
+    from buy_step
+    where step_id = 1 and buy_step.date_step_end is not null) t1
+
+/*Таблица текущего года*/
+select year(buy_step.date_step_end) as Год, month(buy_step.date_step_end) as Месяц, 
+    sum(book.price * buy_book.amount) as Сумма
+from buy_step
+    inner join buy_book using(buy_id)
+    inner join book using(book_id)
+where step_id = 1 and buy_step.date_step_end is not null
+group by year(buy_step.date_step_end), month(buy_step.date_step_end)
+
+/*Сравнить ежемесячную выручку от продажи книг за текущий и предыдущий годы. Для этого вывести год, месяц, 
+сумму выручки в отсортированном сначала по возрастанию месяцев, затем по возрастанию лет виде. 
+Название столбцов: Год, Месяц, Сумма.*/
+select year(date_payment) as Год, monthname(date_payment) as Месяц, sum(price * amount) as Сумма
+from buy_archive
+group by monthname(date_payment), year(date_payment)
+union all
+select year(buy_step.date_step_end) as Год, monthname(buy_step.date_step_end) as Месяц, 
+    sum(book.price * buy_book.amount) as Сумма
+from buy_step
+    inner join buy_book using(buy_id)
+    inner join book using(book_id)
+where step_id = 1 and buy_step.date_step_end is not null
+group by year(buy_step.date_step_end), monthname(buy_step.date_step_end)
+order by Месяц, Год
+
+/*Для каждой отдельной книги необходимо вывести информацию о количестве проданных экземпляров и их стоимости за 2020 и 2019 год . 
+Вычисляемые столбцы назвать Количество и Сумма. 
+Информацию отсортировать по убыванию стоимости.*/
+select t1.title, sum(t1.Количество) as Количество, sum(t1.Сумма) as Сумма
+from
+    (select book.title, sum(buy_archive.amount) as Количество, sum(buy_archive.price * buy_archive.amount) as Сумма 
+    from buy_archive
+        inner join book using(book_id)
+    group by book.title
+    union all
+    select book.title, sum(buy_book.amount) as Количество, sum(book.price * buy_book.amount) as Сумма
+    from book
+        inner join buy_book using(book_id)
+        inner join buy_step using(buy_id)
+    where buy_step.date_step_end is not null and buy_step.step_id = 1
+    group by book.title 
+    ) t1
+group by t1.title
+order by Сумма desc
+
+/**/
+select book.title, author.name_author, client.name_client, city.name_city, buy_step.date_step_beg, 
+     buy_step.date_step_end, datediff(buy_step.date_step_beg, buy_step.date_step_end) as delivered
+from book
+    inner join author using(author_id)
+    inner join buy_book using(book_id)
+    inner join buy using(buy_id)
+    inner join client using(client_id)
+    inner join city using(city_id)
+    inner join buy_step using(buy_id)
+    inner join step using(step_id)
+where step.name_step = 'Доставка' and buy_step.date_step_beg is not null
+order by date_step_beg
+
+/*Включить нового человека в таблицу с клиентами. Его имя Попов Илья, его email popov@test, проживает он в Москве.*/
+insert into client (name_client, city_id, email)
+select 'Попов Илья', city_id, 'popov@test'
+from city
+where name_city = 'Москва';
+
+select *
+from client
+
+/*Создать новый заказ для Попова Ильи. Его комментарий для заказа: «Связаться со мной по вопросу доставки».*/
+insert into buy (buy_description, client_id)
+select 'Связаться со мной по вопросу доставки', client_id
+from client
+where name_client = 'Попов Илья';
+
+select * 
+from buy
+
+/*В таблицу buy_book добавить заказ с номером 5. Этот заказ должен содержать книгу Пастернака «Лирика» в количестве двух экземпляров 
+и книгу Булгакова «Белая гвардия» в одном экземпляре.*/
+insert into buy_book (buy_id, book_id, amount)
+select 5, book_id, 2
+from book
+    inner join author using(author_id)
+where name_author = 'Пастернак Б.Л.' and title = 'Лирика';
+
+insert into buy_book (buy_id, book_id, amount)
+select 5, book_id, 1
+from book
+    inner join author using(author_id)
+where name_author = 'Булгаков М.А.' and title = 'Белая гвардия';
+
+select * 
+from buy_book
+
+/*Количество тех книг на складе, которые были включены в заказ с номером 5, уменьшить на то количество, которое в заказе с номером 5  указано.*/
+update book
+    inner join buy_book using(book_id)
+set book.amount = (book.amount - buy_book.amount)
+where buy_id = 5;
+
+select *
+from book
+
+/*Создать счет (таблицу buy_pay) на оплату заказа с номером 5, в который включить название книг, их автора, цену, количество заказанных книг и  стоимость. 
+Последний столбец назвать Стоимость. 
+Информацию в таблицу занести в отсортированном по названиям книг виде.*/
+create table buy_pay (
+                      title varchar(50),
+                      name_author varchar(30),
+                      price decimal(8, 2),
+                      amount int,
+                      Стоимость decimal(8, 2));
+insert into buy_pay (title, name_author, price, amount, Стоимость)
+select title, name_author, price, buy_book.amount, (price * buy_book.amount)
+from book
+    inner join author using(author_id)
+    inner join buy_book using(book_id)
+where buy_book.buy_id = 5;
+
+select title, name_author, price, amount, Стоимость 
+from buy_pay
+order by title
+
+/*Создать общий счет (таблицу buy_pay) на оплату заказа с номером 5. Куда включить номер заказа, количество книг в заказе (название столбца Количество) 
+и его общую стоимость (название столбца Итого). 
+Для решения используйте ОДИН запрос.*/
+create table buy_pay (buy_id int,
+                      Количество int,
+                      Итого decimal (8, 2));
+insert into buy_pay
+select buy_id, sum(buy_book.amount) as Количество, sum(book.price * buy_book.amount) as Итого
+from buy_book
+    inner join book using(book_id)
+where buy_id = 5
+group by buy_id;
+
+select *
+from buy_pay
+
+/*В таблицу buy_step для заказа с номером 5 включить все этапы из таблицы step, которые должен пройти этот заказ. 
+В столбцы date_step_beg и date_step_end всех записей занести Null.*/
+insert into buy_step (buy_id, step_id)
+select buy_id, step_id
+from buy 
+    cross join step
+    
+where buy_id = 5;
+    
+select *
+from buy_step
+
+/*В таблицу buy_step занести дату 12.04.2020 выставления счета на оплату заказа с номером 5.*/
+update buy_step
+    inner join step using(step_id)
+set buy_step.date_step_beg = '2020.04.12'
+where buy_step.buy_id = 5 and step.name_step = 'Оплата';
+
+select * 
+from buy_step
+where buy_id = 5
+
