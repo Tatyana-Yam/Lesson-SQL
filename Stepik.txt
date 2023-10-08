@@ -306,3 +306,4 @@ from
 where book.author_id is null;
 
 select * from book
+
