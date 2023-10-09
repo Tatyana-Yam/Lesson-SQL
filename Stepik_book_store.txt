@@ -280,3 +280,38 @@ select *
 from buy_step
 where buy_id = 5
 
+/*Завершить этап «Оплата» для заказа с номером 5, вставив в столбец date_step_end дату 13.04.2020, и начать следующий этап («Упаковка»), 
+задав в столбце date_step_beg для этого этапа ту же дату.
+Реализовать два запроса для завершения этапа и начала следующего. Они должны быть записаны в общем виде, чтобы его можно было применять для любых этапов, 
+изменив только текущий этап. 
+Для примера пусть это будет этап «Оплата».*/
+update buy_step
+set date_step_end = if (buy_id = 5 and step_id = 1, '2020-04-13', date_step_end);
+
+update buy_step
+set date_step_beg = if (buy_id = 5 and step_id = 1+1, '2020-04-13', date_step_beg);
+
+select *
+from buy_step
+where buy_step.buy_id = 5
+
+/**/
+select book.title, round((book.price * 1.2), 2) as new_price, t3.sum_amount as quantity_ordered, 
+        (book.amount * 2) as quantity_in_stok
+from
+    book
+    inner join
+    (select t2.book_id, t2.sum_amount
+    from
+        (select book_id, sum(buy_book.amount) as sum_amount
+        from buy_book
+        group by book_id) t2
+         inner join 
+        (select book_id, sum(buy_book.amount) as sum_amount
+        from buy_book
+        group by book_id
+        order by sum_amount desc
+        limit 2) t1
+        on t1.sum_amount = t2.sum_amount
+        ) t3
+        on book.book_id = t3.book_id
