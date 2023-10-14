@@ -1,0 +1,89 @@
+/*Вывести студентов, которые сдавали дисциплину «Основы баз данных», указать дату попытки и результат. Информацию вывести по убыванию результатов тестирования.*/
+select student.name_student, attempt.date_attempt, attempt.result
+from student
+    inner join attempt using(student_id)
+    inner join subject using(subject_id)
+where subject.name_subject = 'Основы баз данных'
+order by result desc
+
+/*Вывести, сколько попыток сделали студенты по каждой дисциплине, а также средний результат попыток, который округлить до 2 знаков после запятой. 
+Под результатом попытки понимается процент правильных ответов на вопросы теста, который занесен в столбец result.  
+В результат включить название дисциплины, а также вычисляемые столбцы Количество и Среднее. 
+Информацию вывести по убыванию средних результатов.*/
+select subject.name_subject, count(attempt.result) as Количество, round(avg(attempt.result), 2) as Среднее
+from subject
+     left join attempt using(subject_id)
+group by subject.name_subject
+order by Среднее desc
+
+/*Вывести студентов (различных студентов), имеющих максимальные результаты попыток. Информацию отсортировать в алфавитном порядке по фамилии студента.*/
+select t1.name_student, t1.result
+from
+    (select student.name_student, attempt.result as result
+    from student
+        inner join attempt using(student_id)
+     ) t1
+    inner join 
+    (select student.name_student, attempt.result as result
+    from student
+        inner join attempt using(student_id)
+    order by attempt.result desc
+    limit 1
+     ) t2
+     on t1.result = t2.result
+order by t1.name_student
+
+/*Если студент совершал несколько попыток по одной и той же дисциплине, то вывести разницу в днях между первой и последней попыткой. 
+В результат включить фамилию и имя студента, название дисциплины и вычисляемый столбец Интервал. Информацию вывести по возрастанию разницы. 
+Студентов, сделавших одну попытку по дисциплине, не учитывать. */
+select student.name_student, subject.name_subject, datediff(max(attempt.date_attempt),  
+    min(attempt.date_attempt)) as Интервал
+from student
+    inner join attempt using(student_id)
+    inner join subject using(subject_id)
+group by student.name_student, subject.name_subject
+having datediff(max(attempt.date_attempt),  
+    min(attempt.date_attempt)) != 0
+order by Интервал 
+
+/*Студенты могут тестироваться по одной или нескольким дисциплинам (не обязательно по всем). 
+Вывести дисциплину и количество уникальных студентов (столбец назвать Количество), которые по ней проходили тестирование . 
+Информацию отсортировать сначала по убыванию количества, а потом по названию дисциплины. 
+В результат включить и дисциплины, тестирование по которым студенты еще не проходили, в этом случае указать количество студентов 0.*/
+select subject.name_subject, count(distinct attempt.student_id) as Количество
+from subject
+    left join attempt using(subject_id)
+group by subject.name_subject
+order by Количество desc, subject.name_subject 
+
+/*Случайным образом отберите 3 вопроса по дисциплине «Основы баз данных». В результат включите столбцы question_id и name_question.*/
+select question_id, name_question
+from question
+    inner join subject using(subject_id)
+where name_subject = 'Основы баз данных'
+order by rand()
+limit 3
+
+/*Вывести вопросы, которые были включены в тест для Семенова Ивана по дисциплине «Основы SQL» 2020-05-17  (значение attempt_id для этой попытки равно 7). 
+Указать, какой ответ дал студент и правильный он или нет (вывести Верно или Неверно). 
+В результат включить вопрос, ответ и вычисляемый столбец  Результат.*/
+select question.name_question, answer.name_answer, 
+    if(answer.is_correct = 1, 'Верно', 'Неверно') as Результат
+from question
+    inner join testing using(question_id)
+    inner join answer using(answer_id)
+where attempt_id = 7
+
+/*Посчитать результаты тестирования. Результат попытки вычислить как количество правильных ответов, 
+деленное на 3 (количество вопросов в каждой попытке) и умноженное на 100. 
+Результат округлить до двух знаков после запятой. Вывести фамилию студента, название предмета, дату и результат. Последний столбец назвать Результат. 
+Информацию отсортировать сначала по фамилии студента, потом по убыванию даты попытки.*/
+select student.name_student, subject.name_subject, attempt.date_attempt, 
+    round(((sum(answer.is_correct) / 3) * 100), 2) as Результат
+from student
+    inner join attempt using(student_id)
+    inner join subject using(subject_id)
+    inner join testing using(attempt_id)
+    inner join answer on testing.answer_id = answer.answer_id
+group by student.name_student, subject.name_subject, attempt.date_attempt
+order by student.name_student, attempt.date_attempt desc
