@@ -87,3 +87,69 @@ from student
     inner join answer on testing.answer_id = answer.answer_id
 group by student.name_student, subject.name_subject, attempt.date_attempt
 order by student.name_student, attempt.date_attempt desc
+
+/*Черновик*/
+select subject.name_subject, concat(left(question.name_question, 30), '...') as Вопрос, 
+    count(testing.question_id) as Всего_ответов
+from subject
+    inner join question using(subject_id)
+    inner join attempt on subject.subject_id = attempt.subject_id
+    inner join testing using(attempt_id)
+group by subject.name_subject, concat(left(question.name_question, 30), '...') 
+order by subject.name_subject, Вопрос 
+/*дубль 2*/
+select subject.name_subject, concat(left(question.name_question, 30), '...') as Вопрос, testing.question_id, 
+    count(if(answer.is_correct = 1, 1, 0)) as result
+from testing
+    inner join answer using(answer_id)
+    inner join question on question.question_id = testing.question_id
+    inner join subject on subject.subject_id = question.subject_id
+group by subject.name_subject, concat(left(question.name_question, 30), '...'), testing.question_id 
+order by subject.name_subject    
+
+/*Для каждого вопроса вывести процент успешных решений, то есть отношение количества верных ответов к общему количеству ответов, 
+значение округлить до 2-х знаков после запятой. Также вывести название предмета, к которому относится вопрос, и общее количество ответов на этот вопрос. 
+В результат включить название дисциплины, вопросы по ней (столбец назвать Вопрос), а также два вычисляемых столбца Всего_ответов и Успешность. 
+Информацию отсортировать сначала по названию дисциплины, потом по убыванию успешности, а потом по тексту вопроса в алфавитном порядке.
+Поскольку тексты вопросов могут быть длинными, обрезать их 30 символов и добавить многоточие "...".*/
+select subject.name_subject, concat(left(question.name_question, 30), '...') as Вопрос, 
+    count(testing.question_id) as Всего_ответов,
+    round(((sum(answer.is_correct) / count(testing.question_id)) * 100), 2) as Успешность
+from testing
+    inner join answer using(answer_id)
+    inner join question on question.question_id = testing.question_id
+    inner join subject on subject.subject_id = question.subject_id
+group by subject.name_subject, concat(left(question.name_question, 30), '...'), testing.question_id 
+order by subject.name_subject, Успешность desc, Вопрос  
+
+/*Произвольная задача*/
+select attempt.attempt_id, student.name_student, subject.name_subject, attempt.result, 
+    if(subject.name_subject = 'Основы SQL', '2020-05-30', '2020-06-02') as Дата_повторной_сдачи
+from student
+    inner join attempt using(student_id)
+    inner join subject using(subject_id)
+where attempt.result < 65
+order by name_subject, Дата_повторной_сдачи
+
+/*В таблицу attempt включить новую попытку для студента Баранова Павла по дисциплине «Основы баз данных». Установить текущую дату в качестве даты выполнения попытки.*/
+insert into attempt (student_id, subject_id, date_attempt)
+select student_id, subject_id, now()
+from student
+    inner join attempt using(student_id)
+    inner join subject using(subject_id)
+where name_student = 'Баранов Павел' and name_subject = 'Основы баз данных'; 
+
+select *
+from attempt  
+
+/**/Черновик
+select question.question_id
+from question
+where question.subject_id in
+    (select attempt.subject_id
+    from attempt
+        inner join (
+        select max(attempt.attempt_id) as max_id
+        from attempt
+        ) t1
+        on attempt.attempt_id = t1.max_id)
