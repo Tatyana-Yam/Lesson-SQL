@@ -23,3 +23,85 @@ from subject
     inner join enrollee_subject using(subject_id)
 group by subject.name_subject
 order by subject.name_subject
+
+/*Вывести образовательные программы, для которых минимальный балл ЕГЭ по каждому предмету больше или равен 40 баллам. 
+Программы вывести в отсортированном по алфавиту виде.*/
+select name_program
+from program
+    inner join (select program_id, min(min_result) as min_result
+    from program_subject
+    group by program_id
+    having min(min_result) >= 40) t1
+    on program.program_id = t1.program_id
+order by name_program
+
+/*Вывести образовательные программы, которые имеют самый большой план набора,  вместе с этой величиной.*/
+select program.name_program, t1.plan
+from program
+    inner join
+    (select max(plan) as plan
+    from program) t1
+    on program.plan = t1.plan
+
+/*Выведите сколько человек подало заявление на каждую образовательную программу и конкурс на нее (число поданных заявлений деленное на количество мест по плану), 
+округленный до 2-х знаков после запятой. В запросе вывести название факультета, к которому относится образовательная программа, название образовательной программы, 
+план набора абитуриентов на образовательную программу (plan), количество поданных заявлений (Количество) и Конкурс. 
+Информацию отсортировать в порядке убывания конкурса.*/
+select department.name_department, program.name_program, program.plan, count(program_enrollee.enrollee_id)
+    as Количество, round((count(program_enrollee.enrollee_id) / plan), 2) as Конкурс
+from department
+    inner join program using(department_id)
+    inner join program_enrollee using(program_id)
+group by department.name_department, program.name_program, program.plan
+order by Конкурс desc
+
+/*Вывести образовательные программы, на которые для поступления необходимы предмет «Информатика» и «Математика» в отсортированном по названию программ виде.*/
+select program.name_program
+from subject
+    inner join program_subject using(subject_id)
+    inner join program using(program_id)
+where subject.name_subject = 'Математика' or subject.name_subject = 'Информатика'
+group by program.name_program
+having count(subject.name_subject) = 2
+order by program.name_program
+
+/*Посчитать количество баллов каждого абитуриента на каждую образовательную программу, на которую он подал заявление, по результатам ЕГЭ. 
+В результат включить название образовательной программы, фамилию и имя абитуриента, а также столбец с суммой баллов, который назвать itog. 
+Информацию вывести в отсортированном сначала по образовательной программе, а потом по убыванию суммы баллов виде.*/
+select program.name_program, enrollee.name_enrollee, sum(enrollee_subject.result) as itog
+from enrollee
+    inner join program_enrollee using(enrollee_id)
+    inner join program using(program_id)
+    inner join program_subject using(program_id)
+    inner join subject using(subject_id)
+    inner join enrollee_subject on enrollee_subject.enrollee_id = enrollee.enrollee_id
+        and enrollee_subject.subject_id = subject.subject_id
+group by enrollee.name_enrollee, program.name_program
+order by program.name_program, itog desc
+
+/*Вывести название образовательной программы и фамилию тех абитуриентов, которые подавали документы на эту образовательную программу, но не могут быть зачислены на нее. 
+Эти абитуриенты имеют результат по одному или нескольким предметам ЕГЭ, необходимым для поступления на эту образовательную программу, меньше минимального балла. 
+Информацию вывести в отсортированном сначала по программам, а потом по фамилиям абитуриентов виде.*/
+select program.name_program, enrollee.name_enrollee
+from program_subject
+    inner join program using(program_id)
+    inner join program_enrollee using(program_id)
+    inner join enrollee on program_enrollee.enrollee_id = enrollee.enrollee_id
+    inner join enrollee_subject on enrollee.enrollee_id = enrollee_subject.enrollee_id
+        and enrollee_subject.subject_id = program_subject.subject_id
+where enrollee_subject.result < program_subject.min_result
+order by name_program, name_enrollee
+
+/*Произвольный*/
+select program.name_program, subject.name_subject, max(enrollee_subject.result) as max_result,
+    min(enrollee_subject.result) as min_result,
+    round(avg(enrollee_subject.result), 2) as avg_result
+from program
+    inner join program_subject using(program_id)
+    inner join subject using(subject_id)
+    inner join enrollee_subject using(subject_id)
+    inner join enrollee using(enrollee_id)
+    inner join program_enrollee on enrollee.enrollee_id = program_enrollee.enrollee_id
+        and program_enrollee.program_id = program.program_id
+group by name_program, name_subject    
+order by avg_result desc, name_program, name_subject
