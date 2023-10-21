@@ -105,3 +105,129 @@ from program
         and program_enrollee.program_id = program.program_id
 group by name_program, name_subject    
 order by avg_result desc, name_program, name_subject
+
+/*Создать вспомогательную таблицу applicant,  куда включить id образовательной программы, id абитуриента, 
+сумму баллов абитуриентов (столбец itog) в отсортированном сначала по id образовательной программы, а потом по убыванию суммы баллов виде*/
+create table applicant as
+select program_subject.program_id, program_enrollee.enrollee_id, sum(enrollee_subject.result) as itog
+from program_subject
+    inner join program_enrollee using(program_id)
+    inner join enrollee_subject on enrollee_subject.enrollee_id = program_enrollee.enrollee_id
+        and enrollee_subject.subject_id = program_subject.subject_id
+group by program_subject.program_id, program_enrollee.enrollee_id
+order by program_subject.program_id, itog desc;
+
+select * from applicant
+
+/*Из таблицы applicant, созданной на предыдущем шаге, удалить записи, 
+если абитуриент на выбранную образовательную программу не набрал минимального балла хотя бы по одному предмету*/
+delete from applicant
+where enrollee_id in
+    (select enrollee.enrollee_id
+    from program_subject
+        inner join program using(program_id)
+        inner join program_enrollee using(program_id)
+        inner join enrollee on program_enrollee.enrollee_id = enrollee.enrollee_id
+        inner join enrollee_subject on enrollee.enrollee_id = enrollee_subject.enrollee_id
+            and enrollee_subject.subject_id = program_subject.subject_id
+    where enrollee_subject.result < program_subject.min_result
+    ) 
+    and program_id in
+    (select program_subject.program_id
+    from program_subject
+        inner join program using(program_id)
+        inner join program_enrollee using(program_id)
+        inner join enrollee on program_enrollee.enrollee_id = enrollee.enrollee_id
+        inner join enrollee_subject on enrollee.enrollee_id = enrollee_subject.enrollee_id
+            and enrollee_subject.subject_id = program_subject.subject_id
+    where enrollee_subject.result < program_subject.min_result
+    );
+
+select * from applicant
+
+/*Вывод верный, но решение неправильное (к следующей задаче)*/Черновик
+update applicant
+    inner join (select t1.enrollee_id, (applicant.itog + t1.Бонус) as sum_itog
+    from applicant
+        inner join
+            (select enrollee_achievement.enrollee_id, sum(achievement.bonus) as Бонус
+            from achievement
+                left join enrollee_achievement using(achievement_id)
+            group by enrollee_achievement.enrollee_id) t1
+            on applicant.enrollee_id = t1.enrollee_id) t2
+            on applicant.enrollee_id = t2.enrollee_id
+set itog = t2.sum_itog
+where applicant.enrollee_id = t2.enrollee_id;
+
+select *
+from applicant
+
+/*Повысить итоговые баллы абитуриентов в таблице applicant на значения дополнительных баллов (использовать запрос из предыдущего урока).*/
+update applicant
+   inner join
+      (select enrollee_achievement.enrollee_id, sum(achievement.bonus) as Бонус
+       from achievement
+           left join enrollee_achievement using(achievement_id)
+       group by enrollee_achievement.enrollee_id) t1
+set itog = applicant.itog + t1.Бонус
+where applicant.enrollee_id = t1.enrollee_id;
+
+select *
+from applicant
+
+/*Включить в таблицу applicant_order новый столбец str_id целого типа , расположить его перед первым.*/
+alter table applicant_order add str_id integer first;
+
+select * from applicant_order
+
+/*Занести в столбец str_id таблицы applicant_order нумерацию абитуриентов, которая начинается с 1 для каждой образовательной программы.*/
+set @num_pr := 0;
+set @row_num := 1;
+
+update applicant_order 
+    inner join (select *,
+        if(program_id = @num_pr, @row_num := @row_num + 1, @row_num := 1) as str_num,
+        @num_pr := program_id as add_var
+        from applicant_order) t1
+set applicant_order.str_id = t1.str_num 
+where applicant_order.program_id = t1.program_id and applicant_order.enrollee_id = t1.enrollee_id;
+
+select *
+from applicant_order
+
+/*Создать таблицу student,  в которую включить абитуриентов, которые могут быть рекомендованы к зачислению  в соответствии с планом набора. 
+Информацию отсортировать сначала в алфавитном порядке по названию программ, а потом по убыванию итогового балла.*/
+create table student as 
+select program.name_program, enrollee.name_enrollee, applicant_order.itog
+from program
+    inner join applicant_order using(program_id)
+    inner join enrollee using(enrollee_id)
+where applicant_order.str_id <= program.plan
+order by program.name_program, applicant_order.itog desc; 
+
+select *
+from student
+
+/*Произвольная*/
+select department.name_department,program.name_program, plan, count(program_enrollee.enrollee_id) as count_enrollee,
+    round((count(program_enrollee.enrollee_id) / plan), 2) as contest
+from program
+    inner join department using(department_id)
+    inner join program_enrollee on program.program_id = program_enrollee.program_id
+group by program.name_program, department.name_department, plan
+
+/*Наполнение*/
++---------------------------+
+| Tables_in_stepik_IszqbHKt |
++---------------------------+
+| achievement               |
+| applicant_order           |
+| department                |
+| enrollee                  |
+| enrollee_achievement      |
+| enrollee_subject          |
+| program                   |
+| program_enrollee          |
+| program_subject           |
+| student                   |
+| subject        
