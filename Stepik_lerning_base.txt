@@ -17,3 +17,35 @@ from lesson
 where step.step_name like '%вложенн%'
 order by module.module_id, lesson.lesson_position, step.step_position
 
+/*Еще одна возможность улучшить навигацию по курсу - это реализация поиска шагов по ключевым словам. 
+Для этого необходимо создать таблицу с терминами keyword, а затем связать ее с таблицей step через вспомогательную таблицу step_keyword. 
+Каждая запись этой таблицы - это id шага и id встречающегося на этом шаге ключевого слова.*/
+insert into step_keyword (step_id, keyword_id)
+select step.step_id, keyword.keyword_id
+from keyword, step
+where step_name REGEXP concat('\\b', keyword_name, '\\b');
+
+select *
+from step_keyword
+
+/*Реализовать поиск по ключевым словам. Вывести шаги, с которыми связаны ключевые слова MAX и AVG одновременно. 
+Для шагов указать id модуля, позицию урока в модуле, позицию шага в уроке через точку, после позиции шага перед заголовком - пробел. 
+Позицию шага в уроке вывести в виде двух цифр (если позиция шага меньше 10, то перед цифрой поставить 0). Столбец назвать Шаг. 
+Информацию отсортировать по первому столбцу в алфавитном порядке.*/
+select concat(module.module_id, '.', lesson.lesson_position, '.', LPAD(step.step_position, 2, '0'), ' ', 
+              t1.step_name) as Шаг
+from module
+    inner join lesson using(module_id)
+    inner join step using(lesson_id)
+    inner join
+        (select step.step_name, count(keyword.keyword_name) as sount_name
+        from step
+            inner join step_keyword using(step_id)
+            inner join keyword using(keyword_id)
+        where keyword.keyword_name = "max" or keyword.keyword_name = "avg"
+        group by step.step_name 
+        having count(keyword.keyword_name) >= 2) t1
+        on step.step_name = t1.step_name
+order by Шаг
+
+
