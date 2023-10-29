@@ -48,4 +48,129 @@ from module
         on step.step_name = t1.step_name
 order by Шаг
 
+/*Посчитать, сколько студентов относится к каждой группе. Столбцы назвать Группа, Интервал, Количество. Указать границы интервала.*/
+select Группа, 
+    case
+        when Группа = 'I' then 'от 0 до 10'
+        when Группа = 'II' then 'от 11 до 15'
+        when Группа = 'III' then 'от 16 до 27'
+        when Группа = 'IV' then 'больше 27'
+    END as Интервал,
+    count(*) as Количество
+from
+    (select student_name, rate,
+        case
+            when rate <= 10 then 'I'
+            when rate <= 15 then 'II'
+            when rate <= 27 then 'III'
+            else 'IV'
+        END as Группа
+    from
+        (
+        select student_name, count(*) as rate
+        from
+            (
+            select student_name, step_id
+            from student
+                inner join step_student using(student_id)
+            where result = 'correct'
+            group by student_name, step_id
+            ) query_in
+        group by student_name
+        order by 2
+        ) query_in_1
+    ) query_in_2
+group by Группа
 
+/*Для каждого шага вывести процент правильных решений. Информацию упорядочить по возрастанию процента верных решений. 
+Столбцы результата назвать Шаг и Успешность, процент успешных решений округлить до целого.
+Исправить запрос примера так: для шагов, которые  не имеют неверных ответов,  указать 100 как процент успешных попыток, если же шаг не имеет верных ответов, указать 0. 
+Информацию отсортировать сначала по возрастанию успешности, а затем по названию шага в алфавитном порядке.*/
+WITH get_count_correct(st_n_c, count_correct)
+    AS(
+        select step_name, count(*)
+        from
+           step
+           inner join step_student using(step_id)
+        where result = 'correct'
+        group by step_name
+      ),
+      get_count_wrong(st_n_w, count_wrong)
+      AS(
+          select step_name, count(*)
+          from
+              step
+              inner join step_student using(step_id)
+          where result = 'wrong'
+          group by step_name
+      )
+select st_n_c as Шаг,
+    IF(ROUND(count_correct / (count_correct + count_wrong) * 100) is null, 100, 
+       ROUND(count_correct / (count_correct + count_wrong) * 100)) as Успешность
+from 
+    get_count_correct
+    LEFT JOIN get_count_wrong
+    on st_n_c = st_n_w
+UNION
+select st_n_w as Шаг,
+    IF(ROUND(count_correct / (count_correct + count_wrong) * 100) is NULL, 0,
+       ROUND(count_correct / (count_correct + count_wrong) * 100)) as Успешность
+from
+    get_count_correct
+    RIGHT JOIN get_count_wrong
+    on st_n_c = st_n_w
+ORDER BY 2, 1
+
+/*Вычислить прогресс пользователей по курсу. Прогресс вычисляется как отношение верно пройденных шагов к общему количеству шагов в процентах, 
+округленное до целого. В нашей базе данные о решениях занесены не для всех шагов, поэтому общее количество шагов определить как количество 
+различных шагов в таблице step_student.
+Тем пользователям, которые прошли все шаги (прогресс = 100%) выдать "Сертификат с отличием". Тем, у кого прогресс больше или равен 80% - "Сертификат". 
+Для остальных записей в столбце Результат задать пустую строку ("").
+Информацию отсортировать по убыванию прогресса, затем по имени пользователя в алфавитном порядке.*/
+select student.student_name as Студент, t4.result_itog as Прогресс, 
+    CASE
+        WHEN t4.result_itog = 100 THEN 'Сертификат с отличием'
+        WHEN t4.result_itog >= 80 THEN 'Сертификат'
+        ELSE ""
+    END
+        as Результат
+from
+    student
+    inner join
+    (select t3.student_id, round((t3.correct_result * 100) / t2.count_step_id) as result_itog
+    from
+        (select student_id, count(distinct(step_id)) as correct_result
+        from step_student
+        where result = "correct"
+        group by student_id) t3
+            inner join     
+            (select count(t1.count_step_id) as count_step_id
+            from
+                (select count(step_id) as count_step_id
+                from step_student
+                group by step_id) t1
+             ) t2
+         ) t4
+      on student.student_id = t4.student_id
+order by Прогресс desc, Студент
+
+
+/*Для студента с именем student_61 вывести все его попытки: название шага, результат и дату отправки попытки (submission_time). 
+Информацию отсортировать по дате отправки попытки и указать, сколько минут прошло между отправкой соседних попыток. 
+Название шага ограничить 20 символами и добавить "...". 
+Столбцы назвать Студент, Шаг, Результат, Дата_отправки, Разница.*/
+select student.student_name as Студент, concat(left(step.step_name, 20), '...') as Шаг, 
+    step_student.result as Результат,
+    from_unixtime(t1.submission_time) as Дата_отправки, sec_to_time(t1.sec_time) as Разница
+from
+    student
+    inner join step_student using (student_id)
+    inner join step using (step_id)
+    inner join
+    (select submission_time, 
+        ifnull(submission_time - LAG(submission_time) OVER (ORDER BY submission_time), 0) AS sec_time
+    from step_student
+    where student_id = 61
+    order by submission_time) t1
+    on step_student.submission_time = t1.submission_time
+order by Дата_отправки
