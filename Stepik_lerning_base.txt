@@ -174,3 +174,31 @@ from
     order by submission_time) t1
     on step_student.submission_time = t1.submission_time
 order by Дата_отправки
+
+/*Посчитать среднее время, за которое пользователи проходят урок по следующему алгоритму:
+для каждого пользователя вычислить время прохождения шага как сумму времени, потраченного на каждую попытку 
+(время попытки - это разница между временем отправки задания и временем начала попытки), при этом попытки, которые длились больше 4 часов не учитывать, 
+так как пользователь мог просто оставить задание открытым в браузере, а вернуться к нему на следующий день;
+для каждого студента посчитать общее время, которое он затратил на каждый урок;
+вычислить среднее время выполнения урока в часах, результат округлить до 2-х знаков после запятой;
+вывести информацию по возрастанию времени, пронумеровав строки, для каждого урока указать номер модуля и его позицию в нем.
+Столбцы результата назвать Номер, Урок, Среднее_время.*/
+select row_number() over (order by avg_time) as Номер,
+    concat(module_id, '.', lesson_position, ' ', lesson_name) as Урок, avg_time as Среднее_время
+from module
+    inner join lesson using (module_id)
+    inner join (select lesson_name, round((avg(sum_time) / 3600), 2) as avg_time
+    from lesson
+        inner join
+        (select lesson_id, student_id, sum(difference_time) as sum_time
+        from
+            step
+            inner join (select step_id, student_id, (submission_time - attempt_time) as difference_time
+            from step_student
+            where (submission_time - attempt_time) < (4 * 3600)) t1
+            using (step_id)
+        group by student_id, lesson_id) t2
+        using (lesson_id)
+    group by lesson_id) t3
+    using(lesson_name)
+order by avg_time
